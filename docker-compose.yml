@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16
+    container_name: tookmyshow-db-compose
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: tookmyshow
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  cache:
+    image: redis:8.4
+    container_name: tookmyshow-redis-compose
+    ports:
+      - "6379:6379"
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: tookmyshow-rabbitmq-compose
+    ports:
+      - "5672:5672" # The internal port
+      - "15672:15672" # The external port
+  mailpit:
+    image: axllent/mailpit
+    container_name: tookmyshow-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 50000
+
+  api:
+    build: .
+    container_name: tookmyshow-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - cache
+      - rabbitmq
+    environment:
+      - DATABASE_URL=postgres://postgres:secret@db:5432/tookmyshow
+      - JWT_SECRET=my-super-secret-key-2026
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - REDIS_URL=cache:6379
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_HOOK_SECRET_KEY=${STRIPE_HOOK_SECRET_KEY}
+
+volumes:
+  postgres_data:
