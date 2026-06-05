@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tookmyshow-api
+spec:
+  replicas: 3 # Scaling to 3 pods to handle the Thundering Herd
+  selector:
+    matchLabels:
+      app: tookmyshow-api
+  template:
+    metadata:
+      labels:
+        app: tookmyshow-api
+    spec:
+      containers:
+        - name: tookmyshow-api
+          image: tookmyshow-api:latest 
+          imagePullPolicy: Never # Tells K8s to use the local build
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tookmyshow-secrets
+                  key: database-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tookmyshow-secrets
+                  key: jwt-secret
+            - name: RABBITMQ_URL
+              value: "amqp://guest:guest@rabbitmq:5672/"
+            - name: REDIS_URL
+              value: "cache:6379"
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tookmyshow-secrets
+                  key: stripe-secret-key
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tookmyshow-secrets
+                  key: stripe-webhook-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+spec:
+  selector:
+    app: tookmyshow-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30000 
+  type: NodePort
