@@ -116,6 +116,7 @@ func main() {
 		os.Exit(1)
 	}
 	conn.Close()
+	redisClient.Close()
 	slog.Info("Server and Database closed gracefully---")
 
 }
